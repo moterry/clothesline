@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 @main
@@ -23,6 +24,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var watcher: FolderWatcher?
     private var keyMonitor: Any?
     private var observers: [NSObjectProtocol] = []
+    private var menuBar: MenuBar?
+    private let onboarding = Onboarding()
+    /// Nil in demo/test runs (CLOTHESLINE_ROOT set): never touch the system screenshot setting then.
+    private lazy var location: ScreenshotLocation? =
+        ProcessInfo.processInfo.environment["CLOTHESLINE_ROOT"] == nil
+            ? ScreenshotLocation(shell: SystemDefaultsShell(), memory: .standard) : nil
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         model.start()
@@ -50,6 +57,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             MainActor.assumeIsolated { self?.layoutStrips() }
         })
 
+        menuBar = MenuBar(model: model, location: location,
+                          onSummon: { [weak self] in
+                              guard let self else { return }
+                              self.model.setSummoned(!self.model.summoned)
+                          },
+                          onCatchAgain: { [weak self] in self?.showOnboarding(askImport: false) })
+
+        // Midnight and wake: cut a line that belongs to an earlier day, then hang anything waiting.
+        let dayTurned: (Notification) -> Void = { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.model.cutIfStale()
+                self?.model.ingest()
+            }
+        }
+        observers.append(NotificationCenter.default.addObserver(forName: .NSCalendarDayChanged, object: nil,
+                                                                queue: .main, using: dayTurned))
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification,
+                                                                           object: nil, queue: .main, using: dayTurned))
+
+        if location != nil && !settings.hasOnboarded { showOnboarding(askImport: true) }
+        registerLoginItemIfNeeded()
+
         let args = CommandLine.arguments
         if args.contains("--summon") { model.setSummoned(true) }
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
@@ -59,6 +88,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSApp.terminate(nil)
             }
         }
+    }
+
+    private func showOnboarding(askImport: Bool) {
+        guard let location else { return }
+        onboarding.show(model: model, location: location, askImport: askImport) { [weak self] in
+            self?.model.ingest()
+        }
+    }
+
+    private func registerLoginItemIfNeeded() {
+        guard Bundle.main.bundleIdentifier != nil, settings.launchAtLogin,
+              SMAppService.mainApp.status != .enabled else { return }
+        try? SMAppService.mainApp.register()
     }
 
     // MARK: Strips
