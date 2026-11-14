@@ -3,6 +3,12 @@
 # Usage: scripts/seed-demo.sh <root>
 set -euo pipefail
 ROOT="${1:?usage: seed-demo.sh <root>}"
+# Safety: only ever wipe a folder under this repo's build/ directory.
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+case "$(cd "$(dirname "$ROOT")" 2>/dev/null && pwd)/$(basename "$ROOT")" in
+  "$REPO/build/"*) ;;
+  *) echo "refusing: demo root must be inside $REPO/build/" >&2; exit 1 ;;
+esac
 rm -rf "$ROOT"
 mkdir -p "$ROOT/Rope" "$ROOT/River"
 

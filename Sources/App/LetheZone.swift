@@ -25,7 +25,10 @@ struct LetheZone: View {
         .opacity(model.isDragging ? 1 : 0)
         .animation(.easeInOut(duration: 0.3), value: model.isDragging)
         .animation(.easeOut(duration: 0.2), value: targeted)
+        .allowsHitTesting(model.isDragging)
         .onDrop(of: [UTType.fileURL], isTargeted: $targeted) { providers in
+            // Only our own drags (visible pool) may sink anything; a stray Finder drop is refused.
+            guard model.isDragging else { return false }
             for provider in providers {
                 _ = provider.loadObject(ofClass: URL.self) { url, _ in
                     guard let url else { return }

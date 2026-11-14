@@ -10,7 +10,7 @@ final class Onboarding {
     func show(model: AppModel, location: ScreenshotLocation, askImport: Bool, onDone: @escaping () -> Void) {
         let desktop = FileManager.default.homeDirectoryForCurrentUser.appending(path: "Desktop")
         let view = OnboardingView(
-            desktopCount: askImport ? DesktopImport.find(in: desktop).count : 0,
+            countDesktop: { askImport ? DesktopImport.find(in: desktop).count : 0 },
             adopt: {
                 location.adopt(model.paths.root)
             },
@@ -40,12 +40,14 @@ final class Onboarding {
 }
 
 private struct OnboardingView: View {
-    let desktopCount: Int
+    /// Called only after consent, so macOS asks for Desktop access no earlier than that.
+    let countDesktop: () -> Int
     let adopt: () -> Void
     let importDesktop: () -> Void
     let finish: () -> Void
 
     @State private var step = 0
+    @State private var desktopCount = 0
 
     var body: some View {
         VStack(spacing: 22) {
@@ -65,6 +67,7 @@ private struct OnboardingView: View {
                     Button("暂不") { finish() }
                     Button("把截图接到晾衣绳") {
                         adopt()
+                        desktopCount = countDesktop()
                         if desktopCount > 0 { step = 1 } else { finish() }
                     }
                     .keyboardShortcut(.defaultAction)

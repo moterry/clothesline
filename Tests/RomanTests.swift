@@ -32,3 +32,9 @@ import Testing
     let c = BundleID(day: Day(year: 2026, month: 11, day: 13), ordinal: 1)
     #expect([c, a, b].sorted() == [b, a, c])
 }
+
+@Test func folderNameRejectsYearsRomanCannotShow() {
+    // A Finder typo must never reach Roman.numeral's precondition (crash on every launch).
+    #expect(BundleID(folderName: "20266-11-14 · I") == nil)
+    #expect(BundleID(folderName: "0000-11-14 · I") == nil)
+}

@@ -118,7 +118,7 @@ final class MenuBar: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func restoreLocation() { location?.restore() }
+    @objc private func restoreLocation() { location?.restore(fallbackFolder: model.paths.root) }
 
     @objc private func catchAgain() { onCatchAgain() }
 

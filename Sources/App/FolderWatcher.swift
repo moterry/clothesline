@@ -59,7 +59,7 @@ enum StableFiles {
         let before = sizes(urls())
         DispatchQueue.main.asyncAfter(deadline: .now() + interval) {
             let after = sizes(urls())
-            if after == before && !after.values.contains(0) {
+            if Stability.isSettled(before: before, after: after) {
                 then()
             } else {
                 whenStable(urls, interval: interval, then: then)

@@ -61,18 +61,30 @@ final class AppModel: ObservableObject {
         if let s = try? LibraryScanner.scan(paths) { snapshot = s }
     }
 
+    private var settling = false
+    private var settleAgain = false
+
     /// Hangs pending screenshots (no-op while paused), once their files have finished writing.
+    /// Only one stability check runs at a time; events during it schedule one more pass.
     func ingest() {
         guard !settings.paused else { refresh(); return }
+        if settling { settleAgain = true; return }
+        settling = true
         let root = paths.root
         StableFiles.whenStable({ FileOps.candidates(in: root) }) { [weak self] in
-            self?.ingestNow()
+            guard let self else { return }
+            self.settling = false
+            self.ingestNow()
+            if self.settleAgain {
+                self.settleAgain = false
+                self.ingest()
+            }
         }
     }
 
     private func ingestNow() {
         guard !settings.paused else { return }
-        let events = (try? keeper.ingestPending()) ?? []
+        let events = (try? keeper.catchUp(now: Date())) ?? []
         let hung = events.compactMap { e -> URL? in if case .hung(let u) = e { return u } else { return nil } }
         withAnimation(.easeInOut(duration: 1.6)) { refresh() }
         guard !hung.isEmpty else { return }
@@ -148,6 +160,7 @@ final class AppModel: ObservableObject {
     private func endDrag() {
         dragPoll = nil
         isDragging = false
+        if summoned { setSummoned(false) }
     }
 
     // MARK: Summon

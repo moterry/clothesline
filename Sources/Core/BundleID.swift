@@ -23,7 +23,7 @@ struct BundleID: Hashable, Comparable, Sendable {
         let dateParts = parts[0].split(separator: "-")
         guard dateParts.count == 3,
               let y = Int(dateParts[0]), let m = Int(dateParts[1]), let d = Int(dateParts[2]),
-              (1...12).contains(m), (1...31).contains(d),
+              (1...3999).contains(y), (1...12).contains(m), (1...31).contains(d),
               let ordinal = (1...3999).first(where: { Roman.numeral($0) == parts[1] })
         else { return nil }
         self.init(day: Day(year: y, month: m, day: d), ordinal: ordinal)

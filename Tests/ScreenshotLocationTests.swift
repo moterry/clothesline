@@ -57,3 +57,11 @@ private let lib = URL(fileURLWithPath: "/Users/x/Pictures/Clothesline", isDirect
     #expect(shell.location == "/A")
     #expect(shell.deletes == 0)
 }
+
+@Test func restoreFallsBackToSystemDefaultWhenNothingRecorded() {
+    // Location points at the library but the remembered original was lost (preferences cleared).
+    let shell = FakeShell(lib.path)
+    ScreenshotLocation(shell: shell, memory: memory()).restore(fallbackFolder: lib)
+    #expect(shell.location == nil)
+    #expect(shell.deletes == 1)
+}

@@ -72,9 +72,13 @@ final class ScreenshotLocation {
         shell.writeLocation(folder.path)
     }
 
-    /// Puts back the location remembered by `adopt`. Does nothing if `adopt` never ran.
-    func restore() {
-        guard memory.bool(forKey: Self.recordedKey) else { return }
+    /// Puts back the location remembered by `adopt`. If nothing was remembered but the system still
+    /// points at `fallbackFolder`, falls back to the system default. Otherwise does nothing.
+    func restore(fallbackFolder: URL? = nil) {
+        guard memory.bool(forKey: Self.recordedKey) else {
+            if let fallbackFolder, isAdopted(fallbackFolder) { shell.deleteLocation() }
+            return
+        }
         if memory.bool(forKey: Self.wasUnsetKey) {
             shell.deleteLocation()
         } else if let original = memory.string(forKey: Self.originalKey) {

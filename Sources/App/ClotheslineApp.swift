@@ -98,9 +98,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func registerLoginItemIfNeeded() {
-        guard Bundle.main.bundleIdentifier != nil, settings.launchAtLogin,
-              SMAppService.mainApp.status != .enabled else { return }
-        try? SMAppService.mainApp.register()
+        guard Bundle.main.bundleIdentifier != nil, settings.launchAtLogin, !settings.loginItemRegisteredOnce else { return }
+        if SMAppService.mainApp.status != .enabled { try? SMAppService.mainApp.register() }
+        settings.loginItemRegisteredOnce = true
     }
 
     // MARK: Strips

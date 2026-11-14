@@ -24,6 +24,12 @@ final class Settings {
         set { d.set(newValue, forKey: "hasOnboarded") }
     }
 
+    /// Set after the first automatic login-item registration, so a later "off" in System Settings sticks.
+    var loginItemRegisteredOnce: Bool {
+        get { d.bool(forKey: "loginItemRegisteredOnce") }
+        set { d.set(newValue, forKey: "loginItemRegisteredOnce") }
+    }
+
     /// On by default.
     var launchAtLogin: Bool {
         get { d.object(forKey: "launchAtLogin") as? Bool ?? true }

@@ -29,10 +29,19 @@ struct RopeKeeper {
                 if let e = try cut() { events.append(e) }
                 rope = []
             }
-            let moved = try FileOps.moveUnique(shot.url, into: paths.rope)
+            // A file that cannot be moved (locked, permissions) stays in the root; the rest still hang.
+            guard let moved = try? FileOps.moveUnique(shot.url, into: paths.rope) else { continue }
             rope.append(Shot(url: moved, created: shot.created))
             events.append(.hung(moved))
         }
+        return events
+    }
+
+    /// Hang everything waiting, then cut the line if what it holds belongs to an earlier day
+    /// (e.g. last night's screenshots caught up this morning).
+    func catchUp(now: Date) throws -> [RopeEvent] {
+        var events = try ingestPending()
+        if let cut = try cutIfStale(now: now) { events.append(cut) }
         return events
     }
 

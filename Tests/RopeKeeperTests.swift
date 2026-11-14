@@ -87,3 +87,32 @@ private func keeper(_ lib: LibraryPaths, capacity: Int = 12) -> RopeKeeper {
     #expect(try keeper(lib).cut() == .cut(BundleID(day: Day(year: 2026, month: 11, day: 14), ordinal: 2)))
     #expect(names(in: lib.river.appending(path: "2026-11-14 · I")) == ["a.png"])
 }
+
+@Test func catchUpCutsBacklogFromEarlierDays() throws {
+    // App was off overnight: last night's screenshots must not sit under today's HODIE.
+    let lib = makeTempLibrary(); try lib.ensureExists()
+    makeImage(lib.root.appending(path: "late.png"), created: at("2026-11-13 23:59"))
+    _ = try keeper(lib).catchUp(now: at("2026-11-14 08:00"))
+    let s = try LibraryScanner.scan(lib)
+    #expect(s.rope.isEmpty)
+    #expect(s.river.map(\.id.folderName) == ["2026-11-13 · I"])
+}
+
+@Test func catchUpKeepsTodaysScreenshotsOnTheLine() throws {
+    let lib = makeTempLibrary(); try lib.ensureExists()
+    makeImage(lib.root.appending(path: "now.png"), created: at("2026-11-14 07:00"))
+    _ = try keeper(lib).catchUp(now: at("2026-11-14 08:00"))
+    #expect(try LibraryScanner.scan(lib).rope.count == 1)
+}
+
+@Test func unmovableFileDoesNotBlockTheRest() throws {
+    let lib = makeTempLibrary(); try lib.ensureExists()
+    let locked = lib.root.appending(path: "a-locked.png")
+    makeImage(locked, created: at("2026-11-14 10:00"))
+    makeImage(lib.root.appending(path: "b.png"), created: at("2026-11-14 10:01"))
+    try FileManager.default.setAttributes([.immutable: true], ofItemAtPath: locked.path)
+    defer { try? FileManager.default.setAttributes([.immutable: false], ofItemAtPath: locked.path) }
+    _ = try keeper(lib).ingestPending()
+    #expect(try LibraryScanner.scan(lib).rope.map(\.url.lastPathComponent) == ["b.png"])
+    #expect(FileManager.default.fileExists(atPath: locked.path))
+}
