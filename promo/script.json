@@ -1,12 +1,12 @@
 {
   "duration": 31.5,
   "lines": [
-    { "start": 0.4,  "zh": "截图只在右下角停留几秒。", "en": "A screenshot lingers for just a few seconds." },
-    { "start": 3.6,  "zh": "没拖走，就掉在桌面上。", "en": "Miss it, and it lands on your desktop." },
-    { "start": 6.6,  "zh": "一天天堆起来，想找的那一张，再也找不到。", "en": "Day after day they pile up, and the one you need is nowhere to be found." },
-    { "start": 11.9, "zh": "晾衣绳。没拖走的截图，整齐挂在桌面上方。", "en": "Clothesline. What you didn't drag away hangs neatly up top." },
-    { "start": 17.1, "zh": "日子过去，它们流进记忆之河，看一眼就能想起。", "en": "As days pass, they drift into the river of memory. One glance, and you remember." },
-    { "start": 22.9, "zh": "不要的，亲手放进忘川。", "en": "What you no longer need, you release into Lethe." },
-    { "start": 26.6, "zh": "绳是现在，河是过去，忘川是放下。", "en": "The line is now. The river is the past. Lethe is letting go.", "card": true }
+    { "start": 0.4, "zh": "截图只在右下角停留几秒。", "yue": "截圖只會喺右下角停幾秒。", "en": "A screenshot lingers for just a few seconds." },
+    { "start": 3.6, "zh": "没拖走，就掉在桌面上。", "yue": "冇拖走，就跌咗落桌面。", "en": "Miss it, and it lands on your desktop." },
+    { "start": 6.6, "zh": "一天天堆起来，想找的那一张，再也找不到。", "yue": "日積月累，想搵嗰張，點都搵唔返。", "en": "Day after day they pile up, and the one you need is nowhere to be found." },
+    { "start": 11.9, "zh": "晾衣绳。没拖走的截图，整齐挂在桌面上方。", "yue": "晾衣繩。冇拖走嘅截圖，整齊掛喺桌面上面。", "en": "Clothesline. What you didn't drag away hangs neatly up top." },
+    { "start": 17.1, "zh": "日子过去，它们流进记忆之河，看一眼就能想起。", "yue": "日子過去，佢哋流入記憶之河，望一眼就諗返起。", "en": "As days pass, they drift into the river of memory. One glance, and you remember." },
+    { "start": 22.9, "zh": "不要的，亲手放进忘川。", "yue": "唔要嘅，親手放入忘川。", "en": "What you no longer need, you release into Lethe." },
+    { "start": 26.6, "zh": "绳是现在，河是过去，忘川是放下。", "yue": "繩係現在，河係過去，忘川係放低。", "en": "The line is now. The river is the past. Lethe is letting go.", "card": true }
   ]
 }

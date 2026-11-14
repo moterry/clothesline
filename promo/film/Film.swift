@@ -7,6 +7,7 @@ import Foundation
 struct ScriptLine: Decodable {
     let start: Double
     let zh: String
+    let yue: String?
     let en: String
     let card: Bool?
 }
@@ -59,6 +60,9 @@ enum Fonts {
             ?? NSFontManager.shared.font(withFamily: "Songti SC", traits: [], weight: 5, size: s)
             ?? .systemFont(ofSize: s)
     }
+    static func songTC(_ s: CGFloat) -> NSFont {
+        NSFont(name: "STSongti-TC-Regular", size: s) ?? song(s)
+    }
     static func pal(_ s: CGFloat) -> NSFont { NSFont(name: "Palatino-Roman", size: s) ?? .systemFont(ofSize: s) }
     static func palItalic(_ s: CGFloat) -> NSFont { NSFont(name: "Palatino-Italic", size: s) ?? .systemFont(ofSize: s) }
     static func sys(_ s: CGFloat, _ w: NSFont.Weight = .regular) -> NSFont { .systemFont(ofSize: s, weight: w) }
@@ -71,7 +75,15 @@ final class Film {
     let W: CGFloat = 1920, H: CGFloat = 1080
     let lang: String
     let script: FilmScript
-    var zh: Bool { lang == "zh" }
+    /// Chinese-script layout (Mandarin or Cantonese).
+    var zh: Bool { lang == "zh" || lang == "yue" }
+    var yue: Bool { lang == "yue" }
+    /// Pick the text for the current language: Mandarin (simplified), Cantonese (traditional), English.
+    func pick(_ mandarin: String, _ cantonese: String, _ english: String) -> String {
+        lang == "yue" ? cantonese : (lang == "zh" ? mandarin : english)
+    }
+    /// Song typeface: traditional forms for Cantonese, simplified otherwise.
+    func cjk(_ size: CGFloat) -> NSFont { yue ? Fonts.songTC(size) : Fonts.song(size) }
 
     // Layout
     let menuH: CGFloat = 34
@@ -132,8 +144,8 @@ final class Film {
             let date = String(format: "2026-11-%02d", max(day, 1))
             let appear = i == 0 ? 5.0 : 6.0 + 3.6 * pow(Double(i) / 45, 0.75)
             list.append(Icon(pos: pos, img: allShots[(i * 7 + 3) % 48],
-                             l1: lang == "zh" ? "截屏 \(date)" : "Screenshot \(date)",
-                             l2: lang == "zh" ? stamp : "at \(stamp)", appear: appear))
+                             l1: lang == "yue" ? "螢幕截圖 \(date)" : (lang == "zh" ? "截屏 \(date)" : "Screenshot \(date)"),
+                             l2: lang == "en" ? "at \(stamp)" : stamp, appear: appear))
         }
         icons = list
 
@@ -258,7 +270,7 @@ final class Film {
         for (i, w) in [58, 40, 40, 44, 46].enumerated() {
             fill(c, CGRect(x: 58 + CGFloat(i) * 70, y: 13, width: CGFloat(w), height: 8), col(0x2b2b2b, 0.28), radius: 4)
         }
-        let clock = zh ? "11月14日 周六  10:42" : "Sat Nov 14  10:42"
+        let clock = pick("11月14日 周六  10:42", "11月14日 週六  10:42", "Sat Nov 14  10:42")
         let size = text(clock, Fonts.sys(15, .medium), nsc(0x2b2b2b, 0.9), at: CGPoint(x: W - 22, y: menuH / 2), align: .right)
         // The Clothesline arc appears in the menu bar once the app is introduced.
         let a = CGFloat(smooth(prog(t, 11.9, 12.5)))
@@ -487,7 +499,7 @@ final class Film {
         guard t > 11.95 && t < 16.6 else { return }
         let fadeOut = CGFloat(1 - smooth(prog(t, 15.9, 16.5)))
         if zh {
-            bouncyWord("晾衣绳", Fonts.song(124), y: 430, kern: 30, start: 12.0, stagger: 0.12, t: t, alpha: fadeOut)
+            bouncyWord(pick("晾衣绳", "晾衣繩", ""), cjk(124), y: 430, kern: 30, start: 12.0, stagger: 0.12, t: t, alpha: fadeOut)
             text("CLOTHESLINE", Fonts.pal(24), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 520), kern: 12,
                  alpha: CGFloat(smooth(prog(t, 12.5, 13.0))) * fadeOut)
         } else {
@@ -574,7 +586,7 @@ final class Film {
                 let cy = bundleY - 66 + CGFloat(sin(ang)) * rad * 0.62
                 sparkle(c, CGPoint(x: cx, y: cy), size: CGFloat(7 + 9 * tw), alpha: CGFloat(hover * (0.4 + 0.6 * tw)))
             }
-            let cap = zh ? "ἀνάμνησις · 回忆" : "ἀνάμνησις · recollection"
+            let cap = pick("ἀνάμνησις · 回忆", "ἀνάμνησις · 回憶", "ἀνάμνησις · recollection")
             text(cap, Fonts.palItalic(27), nsc(0x9a7b3c), at: CGPoint(x: bundleX(2) + 8, y: bundleY - 158), alpha: CGFloat(hover))
         }
     }
@@ -733,7 +745,7 @@ final class Film {
         }
         let ta = CGFloat(smooth(prog(t, 26.8, 27.4)))
         if zh {
-            text("晾衣绳", Fonts.song(108), nsc(0x3d3934), at: CGPoint(x: W / 2, y: 478), kern: 26, alpha: ta)
+            text(pick("晾衣绳", "晾衣繩", ""), cjk(108), nsc(0x3d3934), at: CGPoint(x: W / 2, y: 478), kern: 26, alpha: ta)
             text("CLOTHESLINE", Fonts.pal(24), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 560), kern: 12, alpha: ta)
         } else {
             text("Clothesline", Fonts.pal(100), nsc(0x3d3934), at: CGPoint(x: W / 2, y: 478), kern: 5, alpha: ta)
@@ -741,7 +753,7 @@ final class Film {
         }
         let la = CGFloat(smooth(prog(t, 27.3, 27.9)))
         if zh {
-            text("绳是现在 · 河是过去 · 忘川是放下", Fonts.song(36), nsc(0x4a4540), at: CGPoint(x: W / 2, y: 664), kern: 4, alpha: la)
+            text(pick("绳是现在 · 河是过去 · 忘川是放下", "繩係現在 · 河係過去 · 忘川係放低", ""), cjk(36), nsc(0x4a4540), at: CGPoint(x: W / 2, y: 664), kern: 4, alpha: la)
         } else {
             text("The line is now · The river is the past · Lethe is letting go", Fonts.palItalic(34), nsc(0x4a4540), at: CGPoint(x: W / 2, y: 664), alpha: la)
         }
@@ -757,8 +769,8 @@ final class Film {
             let end = (i + 1 < lines.count ? lines[i + 1].start : script.duration) - 0.25
             guard t >= line.start && t <= end else { continue }
             let a = CGFloat(smooth(prog(t, line.start, line.start + 0.3)) * (1 - smooth(prog(t, end - 0.3, end))))
-            let s = zh ? line.zh : line.en
-            let font = zh ? Fonts.song(38) : Fonts.palItalic(36)
+            let s = pick(line.zh, line.yue ?? line.zh, line.en)
+            let font = zh ? cjk(38) : Fonts.palItalic(36)
             let size = textSize(s, font, kern: zh ? 2 : 0)
             fill(c, CGRect(x: W / 2 - size.width / 2 - 30, y: subtitleY - size.height / 2 - 12, width: size.width + 60, height: size.height + 24),
                  col(0xf4f0e8, 0.8 * a), radius: (size.height + 24) / 2)

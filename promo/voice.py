@@ -4,7 +4,7 @@ Picks the best installed voice for the language (Premium > Enhanced > built-in),
 and raises the speaking rate only as much as needed for every line to finish before the next one starts.
 Writes <out-dir>/<lang>-<i>.aiff and <out-dir>/<lang>-voice.json (the manifest `film mux` reads).
 
-Usage: python3 promo/voice.py <script.json> <zh|en> <out-dir> [voice name]
+Usage: python3 promo/voice.py <script.json> <zh|yue|en> <out-dir> [voice name]
 """
 import json
 import os
@@ -23,6 +23,7 @@ installed = [line.split("#")[0].strip().rsplit(maxsplit=1)[0] for line in listin
 
 PREFS = {
     "zh": ["Tingting (Premium)", "Tingting (Enhanced)", "Lili (Premium)", "Lili (Enhanced)", "Yu-shu (Enhanced)", "Tingting"],
+    "yue": ["Sinji (Premium)", "Sinji (Enhanced)", "Sinji"],
     "en": ["Ava (Premium)", "Zoe (Premium)", "Evan (Premium)", "Ava (Enhanced)", "Zoe (Enhanced)", "Samantha (Enhanced)", "Samantha"],
 }
 voice = forced or next((v for v in PREFS[lang] if v in installed), None)
@@ -30,7 +31,7 @@ if voice is None:
     sys.exit(f"no {lang} voice installed")
 print(f"{lang}: voice = {voice}")
 
-BASE_RATE = {"zh": 168, "en": 165}[lang]
+BASE_RATE = {"zh": 168, "yue": 175, "en": 165}[lang]
 
 
 def speak(text, rate, path):
