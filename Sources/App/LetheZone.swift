@@ -10,10 +10,10 @@ struct LetheZone: View {
     var body: some View {
         ZStack {
             Ellipse()
-                .fill(RadialGradient(colors: [Theme.lethe.opacity(targeted ? 0.55 : 0.4), Theme.lethe.opacity(0)],
+                .fill(RadialGradient(colors: [Theme.lethe.opacity(targeted ? 0.75 : 0.55), Theme.lethe.opacity(0)],
                                      center: .center, startRadius: 4, endRadius: 80))
             Ellipse()
-                .stroke(Theme.lethe.opacity(targeted ? 0.35 : 0.15), lineWidth: 0.8)
+                .stroke(Theme.lethe.opacity(targeted ? 0.5 : 0.3), lineWidth: 0.8)
                 .padding(18)
             Text("ΛΗΘΗ")
                 .font(Theme.inscription(13))
@@ -26,16 +26,9 @@ struct LetheZone: View {
         .animation(.easeInOut(duration: 0.3), value: model.isDragging)
         .animation(.easeOut(duration: 0.2), value: targeted)
         .allowsHitTesting(model.isDragging)
-        .onDrop(of: [UTType.fileURL], isTargeted: $targeted) { providers in
-            // Only our own drags (visible pool) may sink anything; a stray Finder drop is refused.
-            guard model.isDragging else { return false }
-            for provider in providers {
-                _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                    guard let url else { return }
-                    DispatchQueue.main.async { model.sink([url]) }
-                }
-            }
-            return true
+        .onDrop(of: [UTType.fileURL, UTType.item], isTargeted: $targeted) { _ in
+            // Sink what our own drag carries; a stray drop from Finder (no drag of ours) is refused.
+            model.dropOnLethe()
         }
     }
 }

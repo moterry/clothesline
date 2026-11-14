@@ -145,8 +145,14 @@ final class AppModel: ObservableObject {
     /// When true, starting a drag lifts the strips above all windows (set from the proof-of-concept result).
     static let summonOnDrag = false
 
+    /// What our own drag is carrying (screenshot files or a bundle folder). Lethe sinks exactly these:
+    /// the drop's pasteboard data cannot be read back as file URLs on macOS, so it is not used.
+    private(set) var draggedURLs: [URL] = []
+    private var dragEndedAt = Date.distantPast
+
     /// A drag began from one of our screenshots. SwiftUI reports no end, so poll the mouse button.
-    func beginDrag() {
+    func beginDrag(_ urls: [URL]) {
+        draggedURLs = urls
         isDragging = true
         if Self.summonOnDrag { setSummoned(true) }
         dragPoll?.invalidate()
@@ -159,8 +165,20 @@ final class AppModel: ObservableObject {
 
     private func endDrag() {
         dragPoll = nil
+        dragEndedAt = Date()
         isDragging = false
         if summoned { setSummoned(false) }
+    }
+
+    /// A drop landed on Lethe. Accepted only for our own drag (in progress, or ended within the last second
+    /// in case the mouse-up was noticed first). Returns whether anything started sinking.
+    @discardableResult
+    func dropOnLethe() -> Bool {
+        guard !draggedURLs.isEmpty, isDragging || Date().timeIntervalSince(dragEndedAt) < 1 else { return false }
+        let urls = draggedURLs
+        draggedURLs = []
+        sink(urls)
+        return paths.filesToSink(urls).contains(where: isSinking)
     }
 
     // MARK: Summon

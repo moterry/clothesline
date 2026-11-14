@@ -186,7 +186,7 @@ struct BundleStack: View {
         }
         .onDrag {
             model.rescue(bundle.shots.map(\.url))
-            model.beginDrag()
+            model.beginDrag([bundle.url])
             return NSItemProvider(contentsOf: bundle.url) ?? NSItemProvider()
         }
         .contextMenu {

@@ -72,7 +72,7 @@ struct ShotInteractions: ViewModifier {
             }
             .onDrag {
                 if model.isSinking(url) { model.rescue(url) }
-                model.beginDrag()
+                model.beginDrag([url])
                 return NSItemProvider(contentsOf: url) ?? NSItemProvider()
             }
             .contextMenu {

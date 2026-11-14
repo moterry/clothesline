@@ -80,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         registerLoginItemIfNeeded()
 
         let args = CommandLine.arguments
+        if args.contains("--selftest-lethe"), ProcessInfo.processInfo.environment["CLOTHESLINE_ROOT"] != nil {
+            LetheSelfTest.run(model)
+        }
         if args.contains("--summon") { model.setSummoned(true) }
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             let dir = URL(fileURLWithPath: args[i + 1])
@@ -149,6 +152,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                let png = bmp.representation(using: .png, properties: [:]) {
                 try? png.write(to: dir.appending(path: "\(name).png"))
             }
+        }
+    }
+}
+
+/// Debug-only end-to-end check of the Lethe path (demo library only): stray drop refused, drop sinks and
+/// deletes after 5s, rescue keeps the file, a dropped bundle disappears. Prints PASS/FAIL and quits.
+@MainActor
+enum LetheSelfTest {
+    static func run(_ model: AppModel) {
+        var results: [(String, Bool)] = []
+        let rope = model.snapshot.rope.map(\.url)
+        guard rope.count >= 2, let bundle = model.snapshot.river.first else {
+            print("SELFTEST FAIL: demo library needs 2 rope shots and 1 bundle"); exit(1)
+        }
+        let a = rope[0], b = rope[1], bundleFiles = bundle.shots.map(\.url)
+        results.append(("stray drop refused", model.dropOnLethe() == false))
+        model.beginDrag([a])
+        results.append(("drop sinks a", model.dropOnLethe() && model.isSinking(a)))
+        model.beginDrag([b])
+        results.append(("drop sinks b", model.dropOnLethe() && model.isSinking(b)))
+        model.beginDrag([bundle.url])
+        results.append(("drop sinks bundle", model.dropOnLethe() && bundleFiles.allSatisfy(model.isSinking)))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            model.rescue(b)
+            results.append(("rescue stops b sinking", !model.isSinking(b)))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            results.append(("nothing deleted before 5s", FileManager.default.fileExists(atPath: a.path)))
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) {
+            let fm = FileManager.default
+            results.append(("a deleted after 5s", !fm.fileExists(atPath: a.path)))
+            results.append(("rescued b still exists", fm.fileExists(atPath: b.path)))
+            results.append(("bundle folder gone", !fm.fileExists(atPath: bundle.url.path)))
+            results.append(("snapshot refreshed", !model.snapshot.rope.map(\.url).contains(a)))
+            for (name, ok) in results { print("SELFTEST \(ok ? "PASS" : "FAIL"): \(name)") }
+            exit(results.allSatisfy(\.1) ? 0 : 1)
         }
     }
 }
