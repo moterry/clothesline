@@ -58,7 +58,7 @@ func video(_ film: Film, out: URL, fps: Int32 = 30) throws {
     if writer.status != .completed { print("writer failed: \(String(describing: writer.error))"); exit(1) }
 }
 
-struct VOClip: Decodable { let file: String; let start: Double; let duration: Double }
+struct VOClip: Decodable { let file: String; let start: Double; let duration: Double; let gain: Double? }
 
 func mux(video: URL, music: URL, vo: [VOClip], seconds: Double, out: URL) async throws {
     try? FileManager.default.removeItem(at: out)
@@ -113,7 +113,10 @@ func mux(video: URL, music: URL, vo: [VOClip], seconds: Double, out: URL) async 
                                                 end: CMTime(seconds: b.0, preferredTimescale: 600)))
     }
     let vp = AVMutableAudioMixInputParameters(track: cvo)
-    vp.setVolume(0.74, at: .zero)
+    // Each line at its own loudness-matched gain (promo/voice.py), so every voice sits at the same level.
+    for clip in clips {
+        vp.setVolume(Float(0.74 * (clip.gain ?? 1)), at: CMTime(seconds: clip.start, preferredTimescale: 600))
+    }
     let mix = AVMutableAudioMix()
     mix.inputParameters = [mp, vp]
 

@@ -11,6 +11,10 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
+import wave
+
+import numpy as np
 
 script_path, lang, out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 forced = sys.argv[4] if len(sys.argv) > 4 else None
@@ -40,6 +44,22 @@ def speak(text, rate, path):
     return float(re.search(r"estimated duration: ([\d.]+)", info).group(1))
 
 
+TARGET_RMS = 0.15   # speech loudness every voice is matched to (Ava/Samantha sit near this already)
+PEAK_LIMIT = 0.85
+
+
+def loudness_gain(path):
+    """Gain that brings this clip's speech RMS to TARGET_RMS without its peak exceeding PEAK_LIMIT."""
+    with tempfile.NamedTemporaryFile(suffix=".wav") as tmp:
+        subprocess.run(["afconvert", "-f", "WAVE", "-d", "LEI16", path, tmp.name], check=True)
+        w = wave.open(tmp.name)
+        d = np.frombuffer(w.readframes(w.getnframes()), dtype="<i2").astype(float) / 32768
+    speech = d[np.abs(d) > 0.01]
+    rms = float(np.sqrt(np.mean(speech ** 2))) if len(speech) else TARGET_RMS
+    peak = float(np.max(np.abs(d))) or 1.0
+    return min(TARGET_RMS / rms, PEAK_LIMIT / peak)
+
+
 lines = script["lines"]
 manifest = []
 for i, line in enumerate(lines):
@@ -53,6 +73,7 @@ for i, line in enumerate(lines):
         dur = speak(line[lang], rate, path)
     flag = "" if dur <= window else "  (!) still too long"
     print(f"  line {i}: {dur:.2f}s of {window:.2f}s at rate {rate}{flag}")
-    manifest.append({"file": os.path.abspath(path), "start": line["start"], "duration": dur})
+    gain = loudness_gain(path)
+    manifest.append({"file": os.path.abspath(path), "start": line["start"], "duration": dur, "gain": round(gain, 3)})
 
 json.dump(manifest, open(os.path.join(out_dir, f"{lang}-voice.json"), "w"), ensure_ascii=False, indent=1)
