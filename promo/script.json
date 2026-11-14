@@ -1,7 +1,7 @@
 {
   "duration": 31.5,
   "lines": [
-    { "start": 0.6,  "zh": "截图只在右下角停留几秒。", "en": "A screenshot lingers for just a few seconds." },
+    { "start": 0.4,  "zh": "截图只在右下角停留几秒。", "en": "A screenshot lingers for just a few seconds." },
     { "start": 3.6,  "zh": "没拖走，就掉在桌面上。", "en": "Miss it, and it lands on your desktop." },
     { "start": 6.6,  "zh": "一天天堆起来，想找的那一张，再也找不到。", "en": "Day after day they pile up, and the one you need is nowhere to be found." },
     { "start": 11.9, "zh": "晾衣绳。没拖走的截图，整齐挂在桌面上方。", "en": "Clothesline. What you didn't drag away hangs neatly up top." },
