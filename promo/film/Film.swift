@@ -23,6 +23,15 @@ func prog(_ t: Double, _ a: Double, _ b: Double) -> Double { clamp01((t - a) / (
 func smooth(_ x: Double) -> Double { x * x * (3 - 2 * x) }
 func easeOut(_ x: Double) -> Double { 1 - pow(1 - x, 3) }
 func easeInOut(_ x: Double) -> Double { x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2 }
+/// Overshoots a little past 1, then settles: a playful pop.
+func easeOutBack(_ x: Double, _ k: Double = 1.9) -> Double { 1 + (k + 1) * pow(x - 1, 3) + k * pow(x - 1, 2) }
+/// A damped wobble that starts at `at`: 0 before, then decays to 0.
+func wobble(_ t: Double, at: Double, amp: Double, freq: Double = 20, decay: Double = 5.5) -> Double {
+    let d = t - at
+    return d <= 0 || d > 2.5 ? 0 : amp * exp(-d * decay) * sin(d * freq)
+}
+/// The beat the score lands its final chord on (promo/music.py: 11.9 s + 32 beats at 112 BPM).
+let finalHit = 11.9 + 32 * 60.0 / 112
 func lerp(_ a: CGFloat, _ b: CGFloat, _ t: Double) -> CGFloat { a + (b - a) * CGFloat(t) }
 func lerp(_ a: CGPoint, _ b: CGPoint, _ t: Double) -> CGPoint { CGPoint(x: lerp(a.x, b.x, t), y: lerp(a.y, b.y, t)) }
 func quad(_ a: CGPoint, _ c: CGPoint, _ b: CGPoint, _ t: Double) -> CGPoint { lerp(lerp(a, c, t), lerp(c, b, t), t) }
@@ -157,6 +166,7 @@ final class Film {
         river(c, t)
         ropeLayer(c, t)
         lethe(c, t)
+        bubbles(c, t)
         titleS3(c, t)
         menuBar(c, t)
         dock(c)
@@ -325,7 +335,11 @@ final class Film {
                 let target = iconRect(icons[0])
                 let center = quad(CGPoint(x: r.midX, y: r.midY), CGPoint(x: W - 120, y: 420), CGPoint(x: target.midX, y: target.midY), p)
                 let w = lerp(r.width, target.width, p), h = lerp(r.height, target.height, p)
-                shot(c, shots[thumbIdx], CGRect(x: center.x - w / 2, y: center.y - h / 2, width: w, height: h), border: lerp(6, 3, p))
+                c.saveGState()
+                c.translateBy(x: center.x, y: center.y)
+                c.rotate(by: CGFloat(-sin(p * .pi) * 18 * .pi / 180))
+                shot(c, shots[thumbIdx], CGRect(x: -w / 2, y: -h / 2, width: w, height: h), border: lerp(6, 3, p))
+                c.restoreGState()
             }
         }
     }
@@ -344,8 +358,8 @@ final class Film {
         for (i, icon) in icons.enumerated() {
             let drift = (r.next() - 0.5) * 120
             guard t >= icon.appear else { continue }
-            let pop = i == 0 ? 1 : easeOut(prog(t, icon.appear, icon.appear + 0.2))
-            let scale = CGFloat(0.6 + 0.4 * pop)
+            let pop = i == 0 ? 1 : easeOutBack(prog(t, icon.appear, icon.appear + 0.26), 2.6)
+            let scale = CGFloat(0.4 + 0.6 * pop) + (i == 0 ? CGFloat(wobble(t, at: 5.0, amp: 0.22, freq: 24, decay: 7)) : 0)
             let alpha = CGFloat(pop * (1 - smooth(gone)))
             guard alpha > 0.01 else { continue }
             let dy = CGFloat(-80 * easeOut(gone)), dx = drift * CGFloat(gone)
@@ -368,15 +382,31 @@ final class Film {
 
     // MARK: Scene 3 — the line
 
+    /// Landing times of the screenshots on the line (the line dips and twangs at each).
+    var landings: [Double] { (0..<7).map { 12.7 + 0.38 * Double($0) + 0.95 } }
+
+    /// How far the line is pulled down right now: it twangs when drawn taut, when each screenshot lands,
+    /// when the scissors snip, and when the latecomer arrives.
+    func ropeBounce(_ t: Double) -> CGFloat {
+        var b = wobble(t, at: 12.8, amp: 7) + wobble(t, at: 16.98, amp: -16, freq: 16, decay: 4) + wobble(t, at: 23.3, amp: 9)
+        for l in landings { b += wobble(t, at: l, amp: 9) }
+        return CGFloat(b)
+    }
+
+    func ropeY(_ x: CGFloat, _ t: Double) -> CGFloat {
+        let u = (x - rope.x0) / (rope.x1 - rope.x0)
+        return rope.y(at: x) + menuH + ropeBounce(t) * 4 * u * (1 - u)
+    }
+
     func ropeLayer(_ c: CGContext, _ t: Double) {
         guard t >= 11.6 else { return }
         let p = easeInOut(prog(t, 11.6, 12.8))
         let x0 = rope.x0, x1 = rope.x0 + (rope.x1 - rope.x0) * CGFloat(p)
         c.saveGState()
         c.setStrokeColor(col(0x4a4540)); c.setLineWidth(1.6); c.setLineCap(.round)
-        c.move(to: CGPoint(x: x0, y: rope.y(at: x0) + menuH))
+        c.move(to: CGPoint(x: x0, y: ropeY(x0, t)))
         var x = x0
-        while x < x1 { x = min(x + 12, x1); c.addLine(to: CGPoint(x: x, y: rope.y(at: x) + menuH)) }
+        while x < x1 { x = min(x + 12, x1); c.addLine(to: CGPoint(x: x, y: ropeY(x, t))) }
         c.strokePath()
         c.restoreGState()
         text(Labels.today(today), Fonts.pal(18), nsc(0x7a7268), at: CGPoint(x: x0 + 4, y: menuH + 20), align: .left, kern: 4,
@@ -389,10 +419,12 @@ final class Film {
             let arrive = easeInOut(prog(t, start, start + 0.95))
             let collapse = easeInOut(prog(t, 17.0 + Double(j) * 0.05, 18.4))
             if collapse >= 1 { continue }
-            let pin = CGPoint(x: slot.pin.x, y: slot.pin.y + menuH)
+            let pin = CGPoint(x: slot.pin.x, y: ropeY(slot.pin.x, t))
             var center = quad(from, CGPoint(x: W - 420, y: 280), pin, arrive)
             var size = slot.size
-            var tilt = slot.tiltDegrees * arrive
+            // After landing it swings on its peg for a moment.
+            var tilt = slot.tiltDegrees * arrive + wobble(t, at: landings[j], amp: 9, freq: 9, decay: 2.6)
+                + wobble(t, at: 16.98, amp: 4, freq: 11, decay: 3)
             var alpha = CGFloat(min(1, prog(t, start, start + 0.3)))
             var peg = arrive >= 1
             if collapse > 0 {
@@ -404,17 +436,20 @@ final class Film {
                 if j > 2 { alpha *= CGFloat(1 - collapse) }
                 peg = collapse < 0.15
             }
-            hang(c, shots[ropeIdx[j]], top: center, size: size, tilt: tilt, alpha: alpha, peg: peg)
+            hang(c, shots[ropeIdx[j]], top: center, size: size, tilt: tilt, alpha: alpha, peg: peg,
+                 pegPop: CGFloat(easeOutBack(prog(t, landings[j] - 0.05, landings[j] + 0.25))))
         }
 
         // Scene 5: a latecomer arrives, is dragged to Lethe, and sinks.
         if t >= 22.5 && t < 26.2 {
             let slot = latecomerSlot
-            let pin = CGPoint(x: slot.pin.x, y: slot.pin.y + menuH)
+            let pin = CGPoint(x: slot.pin.x, y: ropeY(slot.pin.x, t))
             if t < 23.5 {
                 let a = easeInOut(prog(t, 22.5, 23.3))
                 hang(c, shots[latecomerIdx], top: quad(from, CGPoint(x: W - 420, y: 280), pin, a), size: slot.size,
-                     tilt: slot.tiltDegrees * a, alpha: CGFloat(min(1, prog(t, 22.5, 22.8))), peg: a >= 1)
+                     tilt: slot.tiltDegrees * a + wobble(t, at: 23.3, amp: 9, freq: 9, decay: 2.6),
+                     alpha: CGFloat(min(1, prog(t, 22.5, 22.8))), peg: a >= 1,
+                     pegPop: CGFloat(easeOutBack(prog(t, 23.25, 23.55))))
             } else if t < 24.6 {
                 let cp = cursorPoint(t) ?? pin
                 let s = CGSize(width: slot.size.width * 0.9, height: slot.size.height * 0.9)
@@ -435,24 +470,44 @@ final class Film {
     }
 
     /// A screenshot hanging from its peg at `top` (the peg point), rotated around it.
-    func hang(_ c: CGContext, _ img: CGImage, top: CGPoint, size: CGSize, tilt: Double, alpha: CGFloat, peg: Bool) {
+    func hang(_ c: CGContext, _ img: CGImage, top: CGPoint, size: CGSize, tilt: Double, alpha: CGFloat, peg: Bool,
+              pegPop: CGFloat = 1) {
         c.saveGState()
         c.translateBy(x: top.x, y: top.y)
         c.rotate(by: CGFloat(tilt * .pi / 180))
         shot(c, img, CGRect(x: -size.width / 2, y: 11, width: size.width, height: size.height), alpha: alpha)
-        if peg { fill(c, CGRect(x: -4, y: -9, width: 8, height: 23), col(0x9a7b4f, alpha), radius: 2) }
+        if peg {
+            let k = max(pegPop, 0.01)
+            fill(c, CGRect(x: -4 * k, y: -9 * k, width: 8 * k, height: 23 * k), col(0x9a7b4f, alpha), radius: 2)
+        }
         c.restoreGState()
     }
 
     func titleS3(_ c: CGContext, _ t: Double) {
-        let a = CGFloat(smooth(prog(t, 12.0, 12.7)) * (1 - smooth(prog(t, 15.9, 16.5))))
-        guard a > 0 else { return }
+        guard t > 11.95 && t < 16.6 else { return }
+        let fadeOut = CGFloat(1 - smooth(prog(t, 15.9, 16.5)))
         if zh {
-            text("晾衣绳", Fonts.song(124), nsc(0x3d3934), at: CGPoint(x: W / 2, y: 430), kern: 30, alpha: a)
-            text("CLOTHESLINE", Fonts.pal(24), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 520), kern: 12, alpha: a)
+            bouncyWord("晾衣绳", Fonts.song(124), y: 430, kern: 30, start: 12.0, stagger: 0.12, t: t, alpha: fadeOut)
+            text("CLOTHESLINE", Fonts.pal(24), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 520), kern: 12,
+                 alpha: CGFloat(smooth(prog(t, 12.5, 13.0))) * fadeOut)
         } else {
-            text("Clothesline", Fonts.pal(112), nsc(0x3d3934), at: CGPoint(x: W / 2, y: 430), kern: 6, alpha: a)
-            text("晾 衣 绳", Fonts.song(28), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 520), kern: 14, alpha: a)
+            bouncyWord("Clothesline", Fonts.pal(112), y: 430, kern: 6, start: 12.0, stagger: 0.05, t: t, alpha: fadeOut)
+            text("晾 衣 绳", Fonts.song(28), nsc(0x7a7268), at: CGPoint(x: W / 2, y: 520), kern: 14,
+                 alpha: CGFloat(smooth(prog(t, 12.5, 13.0))) * fadeOut)
+        }
+    }
+
+    /// A word whose letters drop in one by one and bounce into place.
+    func bouncyWord(_ word: String, _ font: NSFont, y: CGFloat, kern: CGFloat, start: Double, stagger: Double, t: Double, alpha: CGFloat) {
+        let chars = word.map(String.init)
+        let widths = chars.map { textSize($0, font, kern: kern).width }
+        var x = W / 2 - widths.reduce(0, +) / 2 + kern / 2
+        for (i, ch) in chars.enumerated() {
+            let p = prog(t, start + Double(i) * stagger, start + Double(i) * stagger + 0.55)
+            let dy = CGFloat(-70 * (1 - easeOutBack(p, 2.4)))
+            text(ch, font, nsc(0x3d3934), at: CGPoint(x: x, y: y + dy), align: .left, kern: kern,
+                 alpha: CGFloat(min(1, p * 3)) * alpha)
+            x += widths[i]
         }
     }
 
@@ -510,9 +565,31 @@ final class Film {
                        x: bundleX(0), age: 0, alpha: ra, hover: 0, labelAlpha: CGFloat(smooth(prog(t, 18.4, 18.9))))
         }
         if hover > 0 {
+            // Little golden twinkles around the remembered bundle.
+            for k in 0..<7 {
+                let ang = Double(k) / 7 * 2 * .pi + 0.4
+                let tw = 0.5 + 0.5 * sin(t * 9 + Double(k) * 1.7)
+                let rad = CGFloat(88 + 18 * sin(Double(k) * 2.3))
+                let cx = bundleX(2) + 8 + CGFloat(cos(ang)) * rad * 1.15
+                let cy = bundleY - 66 + CGFloat(sin(ang)) * rad * 0.62
+                sparkle(c, CGPoint(x: cx, y: cy), size: CGFloat(7 + 9 * tw), alpha: CGFloat(hover * (0.4 + 0.6 * tw)))
+            }
             let cap = zh ? "ἀνάμνησις · 回忆" : "ἀνάμνησις · recollection"
             text(cap, Fonts.palItalic(27), nsc(0x9a7b3c), at: CGPoint(x: bundleX(2) + 8, y: bundleY - 158), alpha: CGFloat(hover))
         }
+    }
+
+    func sparkle(_ c: CGContext, _ p: CGPoint, size: CGFloat, alpha: CGFloat) {
+        c.saveGState()
+        c.translateBy(x: p.x, y: p.y)
+        c.setFillColor(col(0xd8b866, alpha))
+        c.move(to: CGPoint(x: 0, y: -size))
+        c.addQuadCurve(to: CGPoint(x: size, y: 0), control: .zero)
+        c.addQuadCurve(to: CGPoint(x: 0, y: size), control: .zero)
+        c.addQuadCurve(to: CGPoint(x: -size, y: 0), control: .zero)
+        c.addQuadCurve(to: CGPoint(x: 0, y: -size), control: .zero)
+        c.fillPath()
+        c.restoreGState()
     }
 
     func drawBundle(_ c: CGContext, _ imgs: [CGImage], label: String, x: CGFloat, age: Int, alpha: CGFloat, hover: Double,
@@ -559,6 +636,26 @@ final class Film {
         text("ΛΗΘΗ", Fonts.pal(18), nsc(0xffffff), at: letheCenter, kern: 7, alpha: 0.88 * a)
     }
 
+    /// Playful bubbles rising out of Lethe after the drop, one per "bloop" in the score.
+    func bubbles(_ c: CGContext, _ t: Double) {
+        guard t > 24.6 && t < 26.6 else { return }
+        for k in 0..<6 {
+            let bp = prog(t, 24.6 + Double(k) * 0.17, 25.6 + Double(k) * 0.17)
+            guard bp > 0 && bp < 1 else { continue }
+            let r = CGFloat(6 + (k % 3) * 3) * CGFloat(0.5 + 0.5 * easeOutBack(min(1, bp * 3)))
+            let bx = letheCenter.x + CGFloat([-30, 20, -8, 34, -20, 6][k]) + CGFloat(sin(bp * 9 + Double(k))) * 7
+            let by = letheCenter.y - 6 - CGFloat(bp) * 150
+            c.saveGState()
+            c.setFillColor(col(0xffffff, CGFloat(0.25 * (1 - bp))))
+            c.fillEllipse(in: CGRect(x: bx - r, y: by - r, width: 2 * r, height: 2 * r))
+            c.setStrokeColor(col(0x4f6f8f, CGFloat(0.85 * (1 - bp)))); c.setLineWidth(1.8)
+            c.strokeEllipse(in: CGRect(x: bx - r, y: by - r, width: 2 * r, height: 2 * r))
+            c.setFillColor(col(0xffffff, CGFloat(0.9 * (1 - bp))))
+            c.fillEllipse(in: CGRect(x: bx - r * 0.5, y: by - r * 0.6, width: r * 0.45, height: r * 0.45))
+            c.restoreGState()
+        }
+    }
+
     // MARK: Cursor
 
     func cursorPoint(_ t: Double) -> CGPoint? {
@@ -581,7 +678,19 @@ final class Film {
     }
 
     func cursor(_ c: CGContext, _ t: Double) {
-        guard let p = cursorPoint(t) else { return }
+        guard var p = cursorPoint(t) else { return }
+        if t > 10.1 && t < 10.9 { p.x += CGFloat(sin(t * 46) * 7 * sin(prog(t, 10.1, 10.9) * .pi)) }
+        let q = easeOutBack(prog(t, 9.95, 10.25)) * (1 - smooth(prog(t, 10.75, 11.0)))
+        if q > 0.01 {
+            let b = CGPoint(x: p.x + 58, y: p.y - 52)
+            let r = CGFloat(36 * q)
+            c.saveGState()
+            c.setShadow(offset: CGSize(width: 0, height: 3), blur: 8, color: col(0x000000, 0.18))
+            c.setFillColor(col(0xffffff, 0.96)); c.fillEllipse(in: CGRect(x: b.x - r, y: b.y - r, width: 2 * r, height: 2 * r))
+            c.fillEllipse(in: CGRect(x: b.x - r * 0.9 - 6, y: b.y + r * 0.7, width: 9 * CGFloat(q), height: 9 * CGFloat(q)))
+            c.restoreGState()
+            text("?", Fonts.pal(48 * CGFloat(q)), nsc(0x3d3934), at: CGPoint(x: b.x, y: b.y + 1), alpha: CGFloat(min(1, q)))
+        }
         let a: CGFloat
         if t < 11.0 { a = CGFloat(smooth(prog(t, 8.2, 8.5)) * (1 - smooth(prog(t, 10.6, 10.95)))) }
         else if t < 22.6 { a = CGFloat(smooth(prog(t, 18.5, 18.8))) }
@@ -617,8 +726,9 @@ final class Film {
             c.restoreGState()
             for p in [0.3, 0.5, 0.7] where m >= p {
                 let q = quad(a, ctl, b, p)
-                let pop = CGFloat(easeOut(prog(t, 26.4 + p * 0.8, 26.6 + p * 0.8)))
-                fill(c, CGRect(x: q.x - 4, y: q.y - 9 * pop, width: 8, height: 22 * pop), col(0x9a7b4f), radius: 2)
+                let pop = CGFloat(easeOutBack(prog(t, 26.4 + p * 0.8, 26.75 + p * 0.8), 2.4))
+                let hop = CGFloat(-abs(wobble(t, at: finalHit + (p - 0.3) * 0.25, amp: 16, freq: 13, decay: 4.5)))
+                fill(c, CGRect(x: q.x - 4 * pop, y: q.y - 9 * pop + hop, width: 8 * pop, height: 22 * pop), col(0x9a7b4f), radius: 2)
             }
         }
         let ta = CGFloat(smooth(prog(t, 26.8, 27.4)))

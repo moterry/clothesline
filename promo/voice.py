@@ -18,7 +18,8 @@ script = json.load(open(script_path))
 os.makedirs(out_dir, exist_ok=True)
 
 listing = subprocess.run(["say", "-v", "?"], capture_output=True, text=True).stdout
-installed = [re.split(r"\s{2,}", line.strip())[0] for line in listing.splitlines() if line.strip()]
+# Each line looks like "Samantha (Enhanced) en_US    # Hello!…": the name is everything before the locale.
+installed = [line.split("#")[0].strip().rsplit(maxsplit=1)[0] for line in listing.splitlines() if "#" in line]
 
 PREFS = {
     "zh": ["Tingting (Premium)", "Tingting (Enhanced)", "Lili (Premium)", "Lili (Enhanced)", "Yu-shu (Enhanced)", "Tingting"],
