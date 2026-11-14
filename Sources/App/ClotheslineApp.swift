@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildStrips() {
         top = StripWindow(frame: .zero, content: NSHostingView(rootView: RopeView(model: model)))
-        bottom = StripWindow(frame: .zero, content: NSHostingView(rootView: RiverStripView(model: model)))
+        bottom = StripWindow(frame: .zero, content: NSHostingView(rootView: RiverView(model: model)))
         layoutStrips()
         top.orderFrontRegardless()
         bottom.orderFrontRegardless()
@@ -108,16 +108,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? png.write(to: dir.appending(path: "\(name).png"))
             }
         }
-    }
-}
-
-/// Bottom strip host. Replaced by the full river in Task 10.
-struct RiverStripView: View {
-    @ObservedObject var model: AppModel
-    var body: some View {
-        LinearGradient(colors: [Theme.water.opacity(0), Theme.water.opacity(Theme.waterOpacity), Theme.water.opacity(0)],
-                       startPoint: .top, endPoint: .bottom)
-            .frame(height: Theme.riverHeight)
-            .frame(maxHeight: .infinity, alignment: .bottom)
     }
 }
