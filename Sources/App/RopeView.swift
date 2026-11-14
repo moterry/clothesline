@@ -24,7 +24,7 @@ struct RopeView: View {
                     .allowsHitTesting(false)
 
                 ForEach(Array(zip(shots, slots)), id: \.0.id) { shot, slot in
-                    HangingShot(model: model, shot: shot, slot: slot,
+                    HangingShot(model: model, shot: shot, slot: slot, siblings: shots.map(\.url),
                                 arrivingFrom: CGPoint(x: proxy.size.width - 90, y: proxy.size.height + 200))
                         .transition(.asymmetric(insertion: .identity,
                                                 removal: .offset(x: -180, y: 260).combined(with: .opacity)))
@@ -40,6 +40,7 @@ private struct HangingShot: View {
     @ObservedObject var model: AppModel
     let shot: Shot
     let slot: Slot
+    let siblings: [URL]
     let arrivingFrom: CGPoint
 
     @State private var landed = false
@@ -48,6 +49,7 @@ private struct HangingShot: View {
         let arriving = model.arriving.contains(shot.url) && !landed
         VStack(spacing: 0) {
             ShotCard(shot: shot, size: slot.size)
+                .shotInteractions(model: model, shot: shot, size: slot.size, siblings: siblings)
                 .padding(.top, 7)
         }
         .overlay(alignment: .top) {
@@ -60,6 +62,7 @@ private struct HangingShot: View {
         .position(x: arriving ? arrivingFrom.x : slot.pin.x,
                   y: arriving ? arrivingFrom.y : slot.pin.y + (slot.size.height + 7 + 2 * Theme.frame) / 2)
         .opacity(arriving ? 0 : 1)
+        .zIndex(model.hovered == shot.url ? 10 : 0)
         .onAppear {
             guard model.arriving.contains(shot.url) else { landed = true; return }
             withAnimation(.easeInOut(duration: 1.0)) { landed = true }

@@ -32,3 +32,71 @@ struct ShotCard: View {
         }
     }
 }
+
+/// What every screenshot on the line or in an unrolled bundle can do:
+/// hover to enlarge, click for Quick Look, drag out as a file (it stays put), right-click menu.
+/// A screenshot that is sinking into Lethe is rescued by a click or a drag instead.
+struct ShotInteractions: ViewModifier {
+    @ObservedObject var model: AppModel
+    let shot: Shot
+    let size: CGSize
+    /// All screenshots in the same group, for Quick Look's arrow keys.
+    var siblings: [URL] = []
+
+    @State private var hovering = false
+
+    func body(content: Content) -> some View {
+        let url = shot.url
+        content
+            .overlay(alignment: .top) {
+                if hovering && !model.isDragging && !model.isSinking(url) {
+                    ShotCard(shot: shot, size: CGSize(width: size.width * 2, height: size.height * 2))
+                        .offset(y: size.height * 0.35)
+                        .allowsHitTesting(false)
+                        .transition(.opacity.combined(with: .scale(scale: 0.6, anchor: .top)))
+                }
+            }
+            .zIndex(hovering ? 10 : 0)
+            .animation(.easeOut(duration: 0.18), value: hovering)
+            .onHover { on in
+                hovering = on
+                if on { model.hovered = url } else if model.hovered == url { model.hovered = nil }
+            }
+            .onTapGesture {
+                if model.isSinking(url) {
+                    model.rescue(url)
+                } else {
+                    let group = siblings.isEmpty ? [url] : siblings
+                    QuickLook.shared.show(group, index: group.firstIndex(of: url) ?? 0)
+                }
+            }
+            .onDrag {
+                if model.isSinking(url) { model.rescue(url) }
+                model.beginDrag()
+                return NSItemProvider(contentsOf: url) ?? NSItemProvider()
+            }
+            .contextMenu {
+                Button("快速查看") { QuickLook.shared.show([url], index: 0) }
+                Button("在 Finder 中显示") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                Button("拷贝") { ShotActions.copy(url) }
+                Divider()
+                Button("沉入忘川") { model.sink([url]) }
+            }
+    }
+}
+
+enum ShotActions {
+    static func copy(_ url: URL) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        var items: [NSPasteboardWriting] = [url as NSURL]
+        if let image = NSImage(contentsOf: url) { items.append(image) }
+        pb.writeObjects(items)
+    }
+}
+
+extension View {
+    func shotInteractions(model: AppModel, shot: Shot, size: CGSize, siblings: [URL] = []) -> some View {
+        modifier(ShotInteractions(model: model, shot: shot, size: size, siblings: siblings))
+    }
+}

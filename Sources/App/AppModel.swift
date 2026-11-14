@@ -14,6 +14,8 @@ final class AppModel: ObservableObject {
     @Published var arriving: Set<URL> = []
     @Published var expanded: BundleID?
     @Published var isDragging = false
+    /// The screenshot under the pointer (raised above its neighbours).
+    @Published var hovered: URL?
     @Published private(set) var summoned = false
     /// Advances while something is sinking, so sinking visuals can read progress.
     @Published private(set) var now = Date()
@@ -117,6 +119,29 @@ final class AppModel: ObservableObject {
             letheTimer?.invalidate()
             letheTimer = nil
         }
+    }
+
+    // MARK: Dragging
+
+    private var dragPoll: Timer?
+    /// When true, starting a drag lifts the strips above all windows (set from the proof-of-concept result).
+    static let summonOnDrag = false
+
+    /// A drag began from one of our screenshots. SwiftUI reports no end, so poll the mouse button.
+    func beginDrag() {
+        isDragging = true
+        if Self.summonOnDrag { setSummoned(true) }
+        dragPoll?.invalidate()
+        dragPoll = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] timer in
+            guard NSEvent.pressedMouseButtons & 1 == 0 else { return }
+            timer.invalidate()
+            MainActor.assumeIsolated { self?.endDrag() }
+        }
+    }
+
+    private func endDrag() {
+        dragPoll = nil
+        isDragging = false
     }
 
     // MARK: Summon
