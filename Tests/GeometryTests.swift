@@ -19,9 +19,11 @@ import Testing
 }
 
 @Test func fitKeepsAspect() {
-    #expect(Thumb.fit(CGSize(width: 3000, height: 2000)) == CGSize(width: 150, height: 100))
-    #expect(Thumb.fit(CGSize(width: 1000, height: 2000)) == CGSize(width: 60, height: 120))
-    #expect(Thumb.fit(CGSize(width: 0, height: 0)) == CGSize(width: 150, height: 100))
+    // 30% smaller than the original 150×120 cap, at the user's request (hands-on session).
+    #expect(Thumb.maxSize == CGSize(width: 105, height: 84))
+    #expect(Thumb.fit(CGSize(width: 3000, height: 2000)) == CGSize(width: 105, height: 70))
+    #expect(Thumb.fit(CGSize(width: 1000, height: 2000)) == CGSize(width: 42, height: 84))
+    #expect(Thumb.fit(CGSize(width: 0, height: 0)) == CGSize(width: 105, height: 70))
 }
 
 @Test func slotsFollowCurveLeftToRight() {

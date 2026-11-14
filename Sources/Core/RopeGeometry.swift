@@ -69,11 +69,11 @@ struct RopeGeometry {
 }
 
 enum Thumb {
-    static let maxSize = CGSize(width: 150, height: 120)
+    static let maxSize = CGSize(width: 105, height: 84)
 
     /// Largest size within `maxSize` keeping the aspect ratio. Unknown sizes get a 3:2 default.
     static func fit(_ pixels: CGSize) -> CGSize {
-        guard pixels.width > 0, pixels.height > 0 else { return CGSize(width: 150, height: 100) }
+        guard pixels.width > 0, pixels.height > 0 else { return CGSize(width: maxSize.width, height: (maxSize.width * 2 / 3).rounded()) }
         let k = min(maxSize.width / pixels.width, maxSize.height / pixels.height)
         return CGSize(width: (pixels.width * k).rounded(), height: (pixels.height * k).rounded())
     }
