@@ -70,7 +70,6 @@ private struct OnboardingView: View {
                         desktopCount = countDesktop()
                         if desktopCount > 0 { step = 1 } else { finish() }
                     }
-                    .keyboardShortcut(.defaultAction)
                 }
             } else {
                 Text("桌面上有 \(desktopCount) 张旧截图，收进记忆之河？")
@@ -80,8 +79,7 @@ private struct OnboardingView: View {
                 HStack(spacing: 14) {
                     Button("暂不") { finish() }
                     Button("收进河里") { importDesktop(); finish() }
-                        .keyboardShortcut(.defaultAction)
-                }
+                    }
             }
         }
         .padding(36)

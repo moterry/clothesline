@@ -1,14 +1,14 @@
 # Proof of concept — desktop-layer strips (Task 2)
 
-Build: `scripts/build.sh && ./build/Clothesline` (at commit of Task 2; later replaced by the real app).
+Checked by the user in the hands-on session on 2026-11-14, with the real app (`~/Applications/晾衣绳.app`).
 
 | Check | Result |
 |---|---|
-| A. Four-finger spread / F11: strips visible, hover & click respond | pending (needs the user) |
-| B. Desktop revealed: drag image into a chat app, windows come back, drop succeeds | pending (needs the user) |
-| C. ⌃⌥L summons over windows; drag into chat behind works; Esc sends back | pending (needs the user) |
-| D. Not in Dock / ⌘Tab, present on every Space | pending (needs the user) |
+| A. Four-finger spread / F11: strips visible, hover & click respond | pass |
+| B. Desktop revealed: drag a screenshot into a chat app, windows come back, drop succeeds, screenshot stays on the line | pass |
+| C. ⌃⌥L summons over windows; ⌃⌥L / Esc sends them back | pass |
+| D. Not in Dock / ⌘Tab | pass |
 
-Automated check from the agent: build OK, process stays running. `screencapture` is blocked (no Screen Recording permission for the terminal), so visual checks need the user.
+Decision: dragging works straight from desktop mode, so drags do **not** auto-summon (`AppModel.summonOnDrag = false`). ⌃⌥L stays as a convenience for grabbing a screenshot without revealing the desktop.
 
-Decision: pending. Until checks run, summon is kept as a convenience and drag does not auto-summon.
+Found in the session: dropping on Lethe did nothing — on macOS the drop's item provider cannot be read back as a file URL. Fixed by sinking the URLs recorded when our own drag starts (`AppModel.dropOnLethe`), verified end to end by `--selftest-lethe`.
