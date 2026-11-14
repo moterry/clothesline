@@ -50,6 +50,7 @@ private struct HangingShot: View {
         VStack(spacing: 0) {
             ShotCard(shot: shot, size: slot.size)
                 .shotInteractions(model: model, shot: shot, size: slot.size, siblings: siblings)
+                .sinking(model: model, urls: [shot.url])
                 .padding(.top, 7)
         }
         .overlay(alignment: .top) {

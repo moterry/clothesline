@@ -20,6 +20,32 @@ struct LibraryPaths: Sendable {
         return LibraryPaths(root: home.appending(path: "Pictures/Clothesline", directoryHint: .isDirectory))
     }
 
+    /// True for anything strictly inside the library root (after resolving `..`). Lethe only ever touches these.
+    func contains(_ url: URL) -> Bool {
+        let rootPath = root.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        return path.hasPrefix(rootPath + "/") && path.count > rootPath.count + 1
+    }
+
+    /// What a drop onto Lethe would delete: screenshot files inside the library, with river bundle
+    /// folders expanded to their screenshots. Anything else (outside files, the Rope folder itself) is ignored.
+    func filesToSink(_ urls: [URL]) -> [URL] {
+        var out: [URL] = []
+        for url in urls where contains(url) {
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
+            if isDir.boolValue {
+                let parent = url.deletingLastPathComponent().standardizedFileURL.path
+                if parent == river.standardizedFileURL.path, BundleID(folderName: url.lastPathComponent) != nil {
+                    out += FileOps.candidates(in: url)
+                }
+            } else if FileOps.isCandidate(url) {
+                out.append(url)
+            }
+        }
+        return out
+    }
+
     func ensureExists() throws {
         for dir in [root, rope, river] {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)

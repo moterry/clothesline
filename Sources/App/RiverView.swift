@@ -61,6 +61,11 @@ private struct RiverBand: View {
                 .frame(height: Theme.bottomStripHeight, alignment: .bottom)
             }
             .frame(height: Theme.bottomStripHeight)
+
+            LetheZone(model: model)
+                .padding(.trailing, 24)
+                .padding(.bottom, 14)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
     }
 
@@ -170,8 +175,25 @@ struct BundleStack: View {
                 withAnimation(.easeOut(duration: 0.6)) { showCaption = false }
             }
         }
+        .sinking(model: model, urls: bundle.shots.map(\.url))
         .onTapGesture {
-            model.expanded = model.expanded == bundle.id ? nil : bundle.id
+            let urls = bundle.shots.map(\.url)
+            if urls.contains(where: model.isSinking) {
+                model.rescue(urls)
+            } else {
+                model.expanded = model.expanded == bundle.id ? nil : bundle.id
+            }
+        }
+        .onDrag {
+            model.rescue(bundle.shots.map(\.url))
+            model.beginDrag()
+            return NSItemProvider(contentsOf: bundle.url) ?? NSItemProvider()
+        }
+        .contextMenu {
+            Button("展开") { model.expanded = bundle.id }
+            Button("在 Finder 中显示") { NSWorkspace.shared.activateFileViewerSelecting([bundle.url]) }
+            Divider()
+            Button("整束沉入忘川") { model.sink([bundle.url]) }
         }
     }
 }
@@ -192,6 +214,7 @@ private struct UnrolledBundle: View {
                         let size = Thumb.fit(ThumbnailCache.shared.pixelSize(shot.url))
                         ShotCard(shot: shot, size: size)
                             .shotInteractions(model: model, shot: shot, size: size, siblings: urls)
+                            .sinking(model: model, urls: [shot.url])
                             .zIndex(model.hovered == shot.url ? 10 : 0)
                     }
                 }

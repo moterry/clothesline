@@ -84,9 +84,11 @@ final class AppModel: ObservableObject {
 
     // MARK: Lethe
 
+    /// Only screenshots inside the library can sink; bundle folders sink all their screenshots.
     func sink(_ urls: [URL]) {
-        guard !urls.isEmpty else { return }
-        _ = lethe.sink(urls, now: Date())
+        let files = paths.filesToSink(urls).filter { !isSinking($0) }
+        guard !files.isEmpty else { return }
+        _ = lethe.sink(files, now: Date())
         now = Date()
         startLetheTimer()
     }
@@ -95,6 +97,10 @@ final class AppModel: ObservableObject {
         guard let id = lethe.sinkID(containing: url) else { return }
         _ = lethe.rescue(id)
         now = Date()
+    }
+
+    func rescue(_ urls: [URL]) {
+        urls.forEach(rescue)
     }
 
     func isSinking(_ url: URL) -> Bool { lethe.sinkID(containing: url) != nil }

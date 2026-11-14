@@ -10,6 +10,27 @@ import Testing
     #expect(root.path.hasSuffix("/Pictures/Clothesline"))
 }
 
+@Test func containsOnlyFilesInsideTheLibrary() {
+    let lib = LibraryPaths(root: URL(fileURLWithPath: "/Users/x/Pictures/Clothesline", isDirectory: true))
+    #expect(lib.contains(URL(fileURLWithPath: "/Users/x/Pictures/Clothesline/Rope/a.png")))
+    #expect(lib.contains(URL(fileURLWithPath: "/Users/x/Pictures/Clothesline/River/2026-11-14 · I")))
+    #expect(!lib.contains(URL(fileURLWithPath: "/Users/x/Pictures/Clothesline")))
+    #expect(!lib.contains(URL(fileURLWithPath: "/Users/x/Pictures/Clothesline-old/a.png")))
+    #expect(!lib.contains(URL(fileURLWithPath: "/Users/x/Desktop/a.png")))
+    #expect(!lib.contains(URL(fileURLWithPath: "/Users/x/Pictures/Clothesline/Rope/../../../Desktop/a.png")))
+}
+
+@Test func filesToSinkExpandsBundleFolders() throws {
+    let lib = makeTempLibrary(); try lib.ensureExists()
+    let bundle = lib.river.appending(path: "2026-11-13 · I")
+    makeImage(bundle.appending(path: "x.png"), created: at("2026-11-13 10:00"))
+    makeImage(bundle.appending(path: "y.png"), created: at("2026-11-13 10:01"))
+    makeImage(lib.rope.appending(path: "r.png"), created: at("2026-11-14 10:00"))
+    let outside = FileManager.default.temporaryDirectory.appending(path: "elsewhere.png")
+    let urls = lib.filesToSink([bundle, lib.rope.appending(path: "r.png"), outside, lib.rope])
+    #expect(urls.map(\.lastPathComponent).sorted() == ["r.png", "x.png", "y.png"])
+}
+
 @Test func candidates() {
     #expect(FileOps.isCandidate(URL(fileURLWithPath: "/a/截屏 2026-11-14 10.00.00.PNG")))
     #expect(FileOps.isCandidate(URL(fileURLWithPath: "/a/s.heic")))
