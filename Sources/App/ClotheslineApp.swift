@@ -86,6 +86,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if args.contains("--summon") { model.setSummoned(true) }
         if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             let dir = URL(fileURLWithPath: args[i + 1])
+            // Demo library only: picture a screenshot and a bundle mid-sink in the Lethe pool.
+            if args.contains("--snapshot-sinking"), ProcessInfo.processInfo.environment["CLOTHESLINE_ROOT"] != nil {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                    guard let model = self?.model else { return }
+                    if let shot = model.snapshot.rope.first { model.sink([shot.url]) }
+                    if let bundle = model.snapshot.river.first { model.sink([bundle.url]) }
+                }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 self?.writeSnapshots(to: dir)
                 NSApp.terminate(nil)

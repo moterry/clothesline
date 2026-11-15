@@ -33,6 +33,18 @@ private let u = URL(fileURLWithPath: "/tmp/never/a.png")
     #expect(removed.isEmpty)
 }
 
+@Test func sinkingListsGroupsOldestFirst() {
+    let q = LetheQueue { _ in }
+    let v = URL(fileURLWithPath: "/tmp/never/b.png")
+    let w = URL(fileURLWithPath: "/tmp/never/c.png")
+    let later = q.sink([v, w], now: t0.addingTimeInterval(1))
+    let first = q.sink([u], now: t0)
+    #expect(q.sinking.map(\.id) == [first, later])
+    #expect(q.sinking.map(\.urls) == [[u], [v, w]])
+    _ = q.rescue(first)
+    #expect(q.sinking.map(\.id) == [later])
+}
+
 @Test func progressRuns0to1() {
     let q = LetheQueue { _ in }
     let id = q.sink([u], now: t0)

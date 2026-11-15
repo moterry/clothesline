@@ -34,6 +34,11 @@ final class LetheQueue {
         entries.removeValue(forKey: id)?.urls
     }
 
+    /// Everything currently sinking, oldest first (what the Lethe pool draws).
+    var sinking: [(id: SinkID, urls: [URL])] {
+        entries.sorted { $0.value.start < $1.value.start }.map { (id: $0.key, urls: $0.value.urls) }
+    }
+
     func sinkID(containing url: URL) -> SinkID? {
         entries.first { $0.value.urls.contains(url) }?.key
     }

@@ -134,9 +134,11 @@ struct BundleStack: View {
     var body: some View {
         let fade = Fade.appearance(age: age)
         let lit = hovering && !model.isDragging
+        // A screenshot of this bundle that is sinking in Lethe is not drawn here.
+        let shown = bundle.shots.filter { !model.isSinking($0.url) }
         VStack(spacing: 10) {
             ZStack {
-                ForEach(Array(bundle.shots.prefix(3).enumerated().reversed()), id: \.element.id) { j, shot in
+                ForEach(Array(shown.prefix(3).enumerated().reversed()), id: \.element.id) { j, shot in
                     ShotCard(shot: shot, size: Self.cardSize, shadow: true)
                         .rotationEffect(.degrees(Double(j - 1) * 2))
                         .offset(x: CGFloat(j) * 7, y: CGFloat(j) * -5)
@@ -177,12 +179,7 @@ struct BundleStack: View {
         }
         .sinking(model: model, urls: bundle.shots.map(\.url))
         .onTapGesture {
-            let urls = bundle.shots.map(\.url)
-            if urls.contains(where: model.isSinking) {
-                model.rescue(urls)
-            } else {
-                model.expanded = model.expanded == bundle.id ? nil : bundle.id
-            }
+            model.expanded = model.expanded == bundle.id ? nil : bundle.id
         }
         .onDrag {
             model.rescue(bundle.shots.map(\.url))
